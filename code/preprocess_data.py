@@ -11,6 +11,8 @@ from unidecode import unidecode
 from multiprocessing import Pool
 import multiprocessing
 import time
+nltk.download('wordnet')
+nltk.download('averaged_perceptron_tagger')
 
 with open('../data/freq_list.json') as f:
     vocab = json.load(f)
@@ -565,17 +567,8 @@ def get_func(filename, output):
     return dict(r)
 
 
-results1 = get_func('../collected_data/autogen_train.json', '../tokenized_data/autogen_train_cleaned.json')
+results1 = get_func('../collected_data/train_all.json', '../tokenized_data/train_all_cleaned.json')
 print("finished part 1")
-results1 = get_func('../collected_data/autogen_dev.json', '../tokenized_data/autogen_dev_cleaned.json')
-print("finished part 2")
-results1 = get_func('../collected_data/manual_train.json', '../tokenized_data/manual_train_clened.json')
-print("finished part 3")
-results2 = get_func('../collected_data/manual_dev.json', '../tokenized_data/manual_dev_cleaned.json')
-print("finished part 4")
 
-results2.update(results1)
-results3.update(results2)
-results4.update(results3)
 with open('../tokenized_data/full_cleaned.json', 'w') as f:
-    json.dump(results4, f, indent=2)
+    json.dump(results1, f, indent=2)
