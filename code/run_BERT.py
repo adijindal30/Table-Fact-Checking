@@ -680,7 +680,7 @@ def main():
         if not args.do_train:
             global_step = 0
             output_dir = None
-        save_dir = output_dir if output_dir is not None else args.load_dir
+        save_dir = args.load_dir
         tbwriter = SummaryWriter(os.path.join(save_dir, 'eval/events'))
         load_step = args.load_step
         if args.load_dir is not None:
