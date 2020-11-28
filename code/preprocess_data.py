@@ -432,23 +432,26 @@ def merge_strings(name, string, tags=None):
         if i < 2:
             i += 1
         elif words[i].startswith('#') and (not words[i - 1].startswith('#')) and words[i - 2].startswith('#'):
-            if is_number(words[i].split(';')[0][1:]) and is_number(words[i - 2].split(';')[0][1:]):
-                i += 1
-            else:
-                prev_idx = words[i - 2].split(';')[1][:-1].split(',')
-                cur_idx = words[i].split(';')[1][:-1].split(',')
-                if cur_idx == prev_idx or (prev_idx[0] == '-2' and prev_idx[1] == cur_idx[1]):
-                    position = "{},{}".format(cur_idx[0], cur_idx[1])
-                    candidate = words[i - 2].split(';')[0] + " " + words[i].split(';')[0][1:] + ";" + position + "#"
-                    words[i] = candidate
-                    del words[i - 1]
-                    del tags[i - 1]
-                    i -= 1
-                    del words[i - 1]
-                    del tags[i - 1]
-                    i -= 1
-                else:
+            try:
+                if is_number(words[i].split(';')[0][1:]) and is_number(words[i - 2].split(';')[0][1:]):
                     i += 1
+                else:
+                    prev_idx = words[i - 2].split(';')[1][:-1].split(',')
+                    cur_idx = words[i].split(';')[1][:-1].split(',')
+                    if cur_idx == prev_idx or (prev_idx[0] == '-2' and prev_idx[1] == cur_idx[1]):
+                        position = "{},{}".format(cur_idx[0], cur_idx[1])
+                        candidate = words[i - 2].split(';')[0] + " " + words[i].split(';')[0][1:] + ";" + position + "#"
+                        words[i] = candidate
+                        del words[i - 1]
+                        del tags[i - 1]
+                        i -= 1
+                        del words[i - 1]
+                        del tags[i - 1]
+                        i -= 1
+                    else:
+                        i += 1
+            except Exception:
+                i += 1
         else:
             i += 1
     return " ".join(words), " ".join(tags)
