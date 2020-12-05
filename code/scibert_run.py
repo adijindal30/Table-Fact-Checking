@@ -505,8 +505,8 @@ def main():
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
-
+    tokenizer = AutoTokenizer.from_pretrained("allenai/scibert_scivocab_uncased")
+    
     train_examples = None
     num_train_optimization_steps = None
     if args.do_train:
@@ -522,9 +522,8 @@ def main():
     else:
         load_dir = args.bert_model
 
-    model = BertForSequenceClassification.from_pretrained(load_dir,
-                                                          cache_dir=cache_dir,
-                                                          num_labels=num_labels)
+    model = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
+    
     if args.fp16:
         model.half()
     model.to(device)
