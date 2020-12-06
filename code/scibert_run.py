@@ -25,6 +25,7 @@ import random
 import sys
 import io
 import json
+from transformers import AutoModel, AutoTokenizer
 
 import numpy as np
 import torch
@@ -37,14 +38,14 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
-from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig
-from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
+from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig
 from tensorboardX import SummaryWriter
 from pprint import pprint
 logger = logging.getLogger(__name__)
 
+WEIGHTS_NAME = '/content/Table-Fact-Checking/scibert_scivocab_uncased/pytorch_model.bin'
+CONFIG_NAME = '/content/Table-Fact-Checking/scibert_scivocab_uncased/config.json'
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -522,7 +523,9 @@ def main():
     else:
         load_dir = args.bert_model
 
-    model = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
+    model = BertForSequenceClassification.from_pretrained(load_dir,
+                                                          cache_dir=cache_dir,
+                                                          num_labels=num_labels)
     
     if args.fp16:
         model.half()
@@ -603,7 +606,7 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
 
                 # define a new function to compute loss values for both output_modes
-                logits = model(input_ids, segment_ids, input_mask, labels=None)
+                logits = model(input_ids, segment_ids, input_mask)
 
                 if output_mode == "classification":
                     loss_fct = CrossEntropyLoss()
