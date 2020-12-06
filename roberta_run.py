@@ -38,8 +38,7 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
 from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
-from transformers import RobertaConfig, RobertaModel
-from pytorch_pretrained_bert.tokenization import BertTokenizer
+from transformers import RobertaConfig, RobertaModel, RobertaTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 from tensorboardX import SummaryWriter
 from pprint import pprint
