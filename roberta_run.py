@@ -37,8 +37,8 @@ from torch.nn import CrossEntropyLoss, MSELoss
 from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
-from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig
+from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
+from transformers import RobertaConfig, RobertaModel
 from pytorch_pretrained_bert.tokenization import BertTokenizer
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
 from tensorboardX import SummaryWriter
@@ -505,7 +505,7 @@ def main():
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
-    tokenizer = BertTokenizer.from_pretrained(args.bert_model, do_lower_case=args.do_lower_case)
+    tokenizer = RobertaTokenizer.from_pretrained("roberta-base")
 
     train_examples = None
     num_train_optimization_steps = None
@@ -660,8 +660,8 @@ def main():
                     if not os.path.exists(output_dir):
                         os.makedirs(output_dir)
 
-                    output_model_file = os.path.join(output_dir, WEIGHTS_NAME)
-                    output_config_file = os.path.join(output_dir, CONFIG_NAME)
+                    output_model_file = os.path.join(output_dir, RobertaModel)
+                    output_config_file = os.path.join(output_dir, RobertaConfig)
 
                     torch.save(model_to_save.state_dict(), output_model_file)
                     model_to_save.config.to_json_file(output_config_file)
