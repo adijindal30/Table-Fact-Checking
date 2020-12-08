@@ -25,7 +25,7 @@ import random
 import sys
 import io
 import json
-
+import tensorflow as tf
 import numpy as np
 import torch
 from torch.utils.data import (DataLoader, RandomSampler, SequentialSampler,
@@ -680,7 +680,7 @@ def main():
         if not args.do_train:
             global_step = 0
             output_dir = None
-        save_dir = args.load_dir
+        save_dir = output_dir if output_dir is not None else args.load_dir
         tbwriter = SummaryWriter(os.path.join(save_dir, 'eval/events'))
         load_step = args.load_step
         if args.load_dir is not None:
@@ -720,6 +720,7 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
         nb_eval_steps = 0
         preds = []
         temp = []
+        predicting = []
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -729,6 +730,13 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
 
             with torch.no_grad():
                 logits = model(input_ids, segment_ids, input_mask, labels=None)
+                #proto_tensor = tf.make_tensor_proto(logits.detach().cpu().numpy())  # convert `tensor a` to a proto tensor
+                #scr_log = np.amax(tf.make_ndarray(proto_tensor), axis = 1)
+                #odds = np.exp(tf.make_ndarray(proto_tensor))
+                #probabi = odds/(odds + 1)
+                #scr_probab = np.amax(probabi, axis = 1)
+                #confi = torch.argmax(logits, -1)
+
 
             # create eval loss and other metric required by the task
             if output_mode == "classification":
@@ -761,17 +769,24 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
         eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
         if output_mode == "classification":
+            scr_log = np.amax(preds, axis = 1)
+            odds = np.exp(preds)
+            probabi = odds/(odds + 1)
+            scr_probab = np.amin(preds, axis = 1)
             preds = np.argmax(preds, axis=1)
+            
         elif output_mode == "regression":
             preds = np.squeeze(preds)
-
+        
+        predicting.extend([(z,w,p) for z,w,p in zip(preds, scr_log, scr_probab)])
         evaluation_results = OrderedDict()
-        for x, y in zip(temp, preds):
+        for x, y in zip(temp, predicting):
             c, f, l = x
+            z, w, p = y
             if not c in evaluation_results:
-                evaluation_results[c] = [{'fact': f, 'gold': int(l), 'pred': int(y)}]
+                evaluation_results[c] = [{'fact': f, 'gold': int(l), 'pred': int(z), 'scr_log': str(w), 'scr_probab': str(p)}]
             else:
-                evaluation_results[c].append({'fact': f, 'gold': int(l), 'pred': int(y)})
+                evaluation_results[c].append({'fact': f, 'gold': int(l), 'pred': int(z), 'scr_log': str(w), 'scr_probab': str(p)})
 
         print("save_dir is {}".format(save_dir))
         output_eval_file = os.path.join(save_dir, "{}_eval_results.json".format(args.test_set))
