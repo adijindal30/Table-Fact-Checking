@@ -269,4 +269,5 @@ if __name__ == "__main__":
     L.info("build tsv datasets ...")
     meta = {}
     meta = convert_to_tsv(train_tsv, trainset, "train", meta, args.scan)
+    meta = convert_to_tsv(dev_tsv, devset, "dev", meta, args.scan)
     save(meta_file, meta, message="meta")
