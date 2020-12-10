@@ -26,6 +26,7 @@ import sys
 import io
 import json
 from transformers import AutoModel, AutoTokenizer
+import tensorflow as tf
 
 import numpy as np
 import torch
@@ -39,7 +40,7 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
-from pytorch_pretrained_bert.modeling import BertForSequenceClassification, BertConfig
+from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from tensorboardX import SummaryWriter
 from pprint import pprint
 logger = logging.getLogger(__name__)
@@ -156,7 +157,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     pos_buf = []
     neg_buf = []
     logger.info("convert_examples_to_features ...")
-    for (ex_index, example) in enumerate(examples):
+    for (ex_index, example) in enumerate(examples[0:10]):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
 
@@ -523,9 +524,7 @@ def main():
     else:
         load_dir = args.bert_model
 
-    model = BertForSequenceClassification.from_pretrained(load_dir,
-                                                          cache_dir=cache_dir,
-                                                          num_labels=num_labels)
+    model = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
     
     if args.fp16:
         model.half()
@@ -606,7 +605,12 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
 
                 # define a new function to compute loss values for both output_modes
-                logits = model(input_ids, segment_ids, input_mask)
+                outputm = model(input_ids = input_ids, token_type_ids = segment_ids, attention_mask = input_mask, encoder_attention_mask = input_mask)
+                logits = tf.matmul(outputm[1].detach().cpu().numpy(), outputm[0].detach().cpu().numpy(), transpose_b=True)
+                
+                proto_tensor = tf.make_tensor_proto(logits)  # convert `tensor a` to a proto tensor
+                
+                logits = torch.Tensor(tf.make_ndarray(proto_tensor))
 
                 if output_mode == "classification":
                     loss_fct = CrossEntropyLoss()
