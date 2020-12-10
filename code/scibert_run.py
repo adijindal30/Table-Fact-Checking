@@ -25,7 +25,7 @@ import random
 import sys
 import io
 import json
-from transformers import AutoModel, AutoTokenizer
+from transformers import BertTokenizer, BertForPreTraining, BertConfig
 import tensorflow as tf
 
 import numpy as np
@@ -40,13 +40,11 @@ from scipy.stats import pearsonr, spearmanr
 from sklearn.metrics import matthews_corrcoef, f1_score
 
 from pytorch_pretrained_bert.optimization import BertAdam, WarmupLinearSchedule
-from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE
 from tensorboardX import SummaryWriter
+from pytorch_pretrained_bert.file_utils import PYTORCH_PRETRAINED_BERT_CACHE, WEIGHTS_NAME, CONFIG_NAME
 from pprint import pprint
 logger = logging.getLogger(__name__)
 
-WEIGHTS_NAME = '/content/Table-Fact-Checking/scibert_scivocab_uncased/pytorch_model.bin'
-CONFIG_NAME = '/content/Table-Fact-Checking/scibert_scivocab_uncased/config.json'
 
 class InputExample(object):
     """A single training/test example for simple sequence classification."""
@@ -157,7 +155,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     pos_buf = []
     neg_buf = []
     logger.info("convert_examples_to_features ...")
-    for (ex_index, example) in enumerate(examples[0:10]):
+    for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
             logger.info("Writing example %d of %d" % (ex_index, len(examples)))
 
@@ -507,7 +505,7 @@ def main():
     label_list = processor.get_labels()
     num_labels = len(label_list)
 
-    tokenizer = AutoTokenizer.from_pretrained("allenai/scibert_scivocab_uncased")
+    tokenizer = BertTokenizer.from_pretrained("allenai/scibert_scivocab_uncased")
     
     train_examples = None
     num_train_optimization_steps = None
@@ -524,7 +522,7 @@ def main():
     else:
         load_dir = args.bert_model
 
-    model = AutoModel.from_pretrained('allenai/scibert_scivocab_uncased')
+    model = BertForPreTraining.from_pretrained("allenai/scibert_scivocab_uncased",cache_dir=cache_dir,num_labels=num_labels, output_attentions=True)
     
     if args.fp16:
         model.half()
@@ -605,12 +603,9 @@ def main():
                 input_ids, input_mask, segment_ids, label_ids = batch
 
                 # define a new function to compute loss values for both output_modes
-                outputm = model(input_ids = input_ids, token_type_ids = segment_ids, attention_mask = input_mask, encoder_attention_mask = input_mask)
-                logits = tf.matmul(outputm[1].detach().cpu().numpy(), outputm[0].detach().cpu().numpy(), transpose_b=True)
+                outputm = model(input_ids = input_ids, token_type_ids = segment_ids, attention_mask = input_mask, labels=None)
                 
-                proto_tensor = tf.make_tensor_proto(logits)  # convert `tensor a` to a proto tensor
-                
-                logits = torch.Tensor(tf.make_ndarray(proto_tensor))
+                logits=outputm.seq_relationship_logits
 
                 if output_mode == "classification":
                     loss_fct = CrossEntropyLoss()
