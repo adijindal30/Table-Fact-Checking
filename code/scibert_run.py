@@ -51,7 +51,6 @@ class InputExample(object):
 
     def __init__(self, guid, text_a, text_b=None, label=None):
         """Constructs a InputExample.
-
         Args:
             guid: Unique id for the example.
             text_a: string. The untokenized text of the first sequence. For single
@@ -157,7 +156,7 @@ def convert_examples_to_features(examples, label_list, max_seq_length,
     logger.info("convert_examples_to_features ...")
     for (ex_index, example) in enumerate(examples):
         if ex_index % 10000 == 0:
-            logger.info("Writing example %d of %d" % (ex_index, len(examples)))
+            logger.info("Writing example %d of %d" % (ex_index, len(examples[0:10])))
 
         example, column_types = example
         tokens_a = tokenizer.tokenize(example.text_a)
@@ -522,7 +521,7 @@ def main():
     else:
         load_dir = args.bert_model
 
-    model = BertForPreTraining.from_pretrained("allenai/scibert_scivocab_uncased",cache_dir=cache_dir,num_labels=num_labels, output_attentions=True)
+    model = BertForPreTraining.from_pretrained(load_dir,cache_dir=cache_dir,num_labels=num_labels, output_attentions=True)
     
     if args.fp16:
         model.half()
@@ -721,6 +720,7 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
         nb_eval_steps = 0
         preds = []
         temp = []
+        predicting = []
 
         for input_ids, input_mask, segment_ids, label_ids in tqdm(eval_dataloader, desc="Evaluating"):
             input_ids = input_ids.to(device)
@@ -729,7 +729,10 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
             label_ids = label_ids.to(device)
 
             with torch.no_grad():
-                logits = model(input_ids, segment_ids, input_mask, labels=None)
+                k = model(input_ids = input_ids, token_type_ids = segment_ids, attention_mask = input_mask, labels=None)
+                logits = k.seq_relationship_logits
+               
+
 
             # create eval loss and other metric required by the task
             if output_mode == "classification":
@@ -762,22 +765,34 @@ def evaluate(args, model, device, processor, label_list, num_labels, tokenizer, 
         eval_loss = eval_loss / nb_eval_steps
         preds = preds[0]
         if output_mode == "classification":
+            scr_log = np.amax(preds, axis = 1)
+            odds = np.exp(preds)
+            probabi = odds/(odds + 1)
+            scr_probab = np.amin(preds, axis = 1)
             preds = np.argmax(preds, axis=1)
+            
         elif output_mode == "regression":
             preds = np.squeeze(preds)
-
-        evaluation_results = OrderedDict()
-        for x, y in zip(temp, preds):
+        
+        predicting.extend([(z,w,p) for z,w,p in zip(preds, scr_log, scr_probab)])
+        er= [['table'] ,['fact'] , ['gold'] , ['pred'] , ['scr_log'] , ['scr_probab']]
+        for x, y in zip(temp, predicting):
             c, f, l = x
-            if not c in evaluation_results:
-                evaluation_results[c] = [{'fact': f, 'gold': int(l), 'pred': int(y)}]
-            else:
-                evaluation_results[c].append({'fact': f, 'gold': int(l), 'pred': int(y)})
-
+            z, w, p = y
+            er[0].append(c)
+            er[1].append(f)
+            er[2].append(int(l))
+            er[3].append(int(z))
+            er[4].append(w)
+            er[5].append(p)
+    
+        rows = zip(er[0], er[1], er[2], er[3], er[4], er[5])
+        with open("eval.csv", "w") as f:
+          writer = csv.writer(f)
+          for row in rows:
+            writer.writerow(row)
         print("save_dir is {}".format(save_dir))
-        output_eval_file = os.path.join(save_dir, "{}_eval_results.json".format(args.test_set))
-        with io.open(output_eval_file, "w", encoding='utf-8') as fout:
-            json.dump(evaluation_results, fout, sort_keys=True, indent=4)
+        
 
         result = compute_metrics(task_name, preds, all_label_ids.numpy())
         loss = tr_loss/args.period if args.do_train and global_step > 0 else None
