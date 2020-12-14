@@ -246,6 +246,7 @@ def recover(buf, recover_dict, content):
 def postprocess(inp, backbone, trans_backbone, transliterate, tabs, recover_dicts, repeat, threshold=1.0):
     new_str = []
     new_tags = []
+    new_ids = []
     buf = ""
     pos_buf = []
     last = set()
@@ -511,6 +512,7 @@ def sub_func(inputs):
                     #raise ValueError("Empty Cell")
 
     # Masking the caption
+    
     captions, _ = get_lemmatize(entry[2].strip(), False)
     for i, w in enumerate(captions):
         if w not in backbone:
@@ -530,11 +532,12 @@ def sub_func(inputs):
                                          transliterate, tabs, recover_dicts, repeat, threshold=0.0)
             sent, tags = merge_strings(name, sent, tags)
             if not results:
-                results = [[sent], [entry[1][i]], [tags], entry[2]]
+                results = [[sent], [entry[1][i]], [tags], entry[2], [entry[3][i]]]
             else:
                 results[0].append(sent)
                 results[1].append(entry[1][i])
                 results[2].append(tags)
+                results[4].append(entry[3][i])
         else:
             print("drop sentence: {}".format(orig_sent))
             continue
@@ -548,6 +551,13 @@ def get_func(filename, output):
     r1_results = {}
     names = []
     entries = []
+    
+
+    for name in data:
+      question_id = []
+      for i in range(len(data[name][0])):
+        question_id.append(name + '_' + str(i) + '-0_0')
+      data[name].append(question_id)
 
     for name in data:
         names.append(name)
