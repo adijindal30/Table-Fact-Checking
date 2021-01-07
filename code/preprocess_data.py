@@ -11,8 +11,6 @@ from unidecode import unidecode
 from multiprocessing import Pool
 import multiprocessing
 import time
-nltk.download('wordnet')
-nltk.download('averaged_perceptron_tagger')
 
 with open('../data/freq_list.json') as f:
     vocab = json.load(f)
@@ -246,7 +244,6 @@ def recover(buf, recover_dict, content):
 def postprocess(inp, backbone, trans_backbone, transliterate, tabs, recover_dicts, repeat, threshold=1.0):
     new_str = []
     new_tags = []
-    new_ids = []
     buf = ""
     pos_buf = []
     last = set()
@@ -342,18 +339,7 @@ def postprocess(inp, backbone, trans_backbone, transliterate, tabs, recover_dict
 def get_lemmatize(words, return_pos):
     #words = nltk.word_tokenize(words)
     recover_dict = {}
-    words = words.strip().split()
-    
-    for i in range(len(words)):
-      if words[i] == '' :
-        words.remove('')
-        break
-    
-    for i in range(len(words)):
-      if words[i] == ' ' :
-        words.remove(' ')
-        break
-    
+    words = words.strip().split(' ')
     pos_tags = [_[1] for _ in nltk.pos_tag(words)]
     word_roots = []
     for w, p in zip(words, pos_tags):
@@ -400,6 +386,7 @@ def is_number(s):
 
 
 def merge_strings(name, string, tags=None):
+    #print(name, string)
     buff = ""
     inside = False
     words = []
@@ -433,33 +420,32 @@ def merge_strings(name, string, tags=None):
         if i < 2:
             i += 1
         elif words[i].startswith('#') and (not words[i - 1].startswith('#')) and words[i - 2].startswith('#'):
-            try:
-                if is_number(words[i].split(';')[0][1:]) and is_number(words[i - 2].split(';')[0][1:]):
-                    i += 1
-                else:
-                    prev_idx = words[i - 2].split(';')[1][:-1].split(',')
-                    cur_idx = words[i].split(';')[1][:-1].split(',')
-                    if cur_idx == prev_idx or (prev_idx[0] == '-2' and prev_idx[1] == cur_idx[1]):
-                        position = "{},{}".format(cur_idx[0], cur_idx[1])
-                        candidate = words[i - 2].split(';')[0] + " " + words[i].split(';')[0][1:] + ";" + position + "#"
-                        words[i] = candidate
-                        del words[i - 1]
-                        del tags[i - 1]
-                        i -= 1
-                        del words[i - 1]
-                        del tags[i - 1]
-                        i -= 1
-                    else:
-                        i += 1
-            except Exception:
+            if is_number(words[i].split(';')[0][1:]) and is_number(words[i - 2].split(';')[0][1:]):
                 i += 1
+            else:
+                prev_idx = words[i - 2].split(';')[1][:-1].split(',')
+                cur_idx = words[i].split(';')[1][:-1].split(',')
+                if cur_idx == prev_idx or (prev_idx[0] == '-2' and len(prev_idx)>1 and len(cur_idx)>1 and prev_idx[1] == cur_idx[1]):
+                    position = "{},{}".format(cur_idx[0], cur_idx[1])
+                    candidate = words[i - 2].split(';')[0] + " " + words[i].split(';')[0][1:] + ";" + position + "#"
+                    words[i] = candidate
+                    del words[i - 1]
+                    del tags[i - 1]
+                    i -= 1
+                    del words[i - 1]
+                    del tags[i - 1]
+                    i -= 1
+                else:
+                    i += 1
         else:
             i += 1
+
     return " ".join(words), " ".join(tags)
 
 
 def sub_func(inputs):
     name, entry = inputs
+    #print(name, entry)
     backbone = {}
     trans_backbone = {}
     transliterate = {}
@@ -512,7 +498,6 @@ def sub_func(inputs):
                     #raise ValueError("Empty Cell")
 
     # Masking the caption
-    
     captions, _ = get_lemmatize(entry[2].strip(), False)
     for i, w in enumerate(captions):
         if w not in backbone:
@@ -532,12 +517,11 @@ def sub_func(inputs):
                                          transliterate, tabs, recover_dicts, repeat, threshold=0.0)
             sent, tags = merge_strings(name, sent, tags)
             if not results:
-                results = [[sent], [entry[1][i]], [tags], entry[2], [entry[3][i]]]
+                results = [[sent], [entry[1][i]], [tags], entry[2]]
             else:
                 results[0].append(sent)
                 results[1].append(entry[1][i])
                 results[2].append(tags)
-                results[4].append(entry[3][i])
         else:
             print("drop sentence: {}".format(orig_sent))
             continue
@@ -551,13 +535,6 @@ def get_func(filename, output):
     r1_results = {}
     names = []
     entries = []
-    
-
-    for name in data:
-      question_id = []
-      for i in range(len(data[name][0])):
-        question_id.append(name + '_' + str(i) + '-0_0')
-      data[name].append(question_id)
 
     for name in data:
         names.append(name)
@@ -580,8 +557,14 @@ def get_func(filename, output):
     return dict(r)
 
 
-results1 = get_func('../collected_data/train_all.json', '../tokenized_data/train_all_cleaned.json')
+results1 = get_func('../collected_data/train_manual.json', '../tokenized_data/train_manual_cleaned.json')
 print("finished part 1")
+results2 = get_func('../collected_data/train_auto.json', '../tokenized_data/train_auto_cleaned.json')
+print("finished part 2")
+results3 = get_func('../collected_data/dev.json', '../tokenized_data/dev_cleaned.json')
+print("finished part 2")
 
+results2.update(results1)
+results3.update(results2)
 with open('../tokenized_data/full_cleaned.json', 'w') as f:
-    json.dump(results1, f, indent=2)
+    json.dump(results3, f, indent=2)
