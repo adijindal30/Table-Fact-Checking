@@ -48,15 +48,22 @@ def process_file(data_dir, shuffle=False):
         dataset = json.load(fin)
 
         for idx, (fname, sample) in tqdm(enumerate(dataset.items())):
+            print(fname)
 
             try:
-                table = pd.read_csv(op.join(all_csv_dir, fname), delimiter='#')
+                if(len(sample)==0):
+                  continue
+                print(fname, "succcess")
+                table = pd.read_csv(op.join(all_csv_dir, fname), delimiter='[#]')
+                #print(table)
 
                 # facts: list of strings
                 facts = sample[0]
                 # labels: list of ints
                 labels = sample[1]
-                assert all([x in [0, 1] for x in labels])
+                print(len(facts), len(labels))
+                assert all([x in [0, 1, 2] for x in labels])
+
                 assert len(facts) == len(labels)
 
                 # types: list of table column strings
